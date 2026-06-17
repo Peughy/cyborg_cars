@@ -27,9 +27,11 @@ const int PIN_BUZZER = A5;
 // Configuration
 const int NBR_MEASURE = 1;
 const int SLOW_FRONT_DIST = 30;
+const int MAX_FRONT_DIST = 200;
 const int STOP_FRONT_DIST = 8;
 const int STOP_LAT_DIST = 10;
-const int MAX_VEL = 180;
+const int NORMAL_VEL = 180;
+const int MAX_VEL = 255;
 const int SLOW_VEL = 127;
 
 // functions for move cars
@@ -105,19 +107,59 @@ float get_distances(int pin_trig, int pin_echo)
   long time = pulseIn(pin_echo, HIGH, 15000);
 
   if (time == 0)
-    return 150.0;
+    return 400.0;
 
   float dist = (time * 0.034) / 2;
   return dist;
 }
 
+// Leds and Buzzer
+void blinking(int pin_led)
+{
+  digitalWrite(pin_led, HIGH);
+  tone(PIN_BUZZER, 200);
+  delay(500);
+  digitalWrite(pin_led, LOW);
+  noTone(PIN_BUZZER);
+  delay(500);
+}
+
+void stop_status()
+{
+  digitalWrite(RIGHT_LED, LOW);
+  digitalWrite(LEFT_LED, LOW);
+  noTone(PIN_BUZZER);
+}
+
+void no_issue()
+{
+  digitalWrite(RIGHT_LED, HIGH);
+  digitalWrite(LEFT_LED, HIGH);
+  tone(PIN_BUZZER, 250);
+  delay(300);
+  digitalWrite(LEFT_LED, LOW);
+  digitalWrite(RIGHT_LED, LOW);
+  noTone(PIN_BUZZER);
+  delay(300);
+}
+
+// navigation algorithm
 void navigation(float dist_front, float dist_left, float dist_right)
 {
+  stop_status();
+
+  if (dist_front < STOP_FRONT_DIST && dist_left < STOP_LAT_DIST && dist_right < STOP_LAT_DIST)
+  {
+    stop();
+    no_issue();
+  }
+
   if (dist_front < SLOW_FRONT_DIST && dist_front > STOP_FRONT_DIST)
   {
     if (dist_left < STOP_LAT_DIST)
     {
       turn_right(SLOW_VEL);
+      blinking(RIGHT_LED);
 
       Serial.print("FRONT: ");
       Serial.print(dist_front);
@@ -130,6 +172,7 @@ void navigation(float dist_front, float dist_left, float dist_right)
     else if (dist_right < STOP_LAT_DIST)
     {
       turn_left(SLOW_VEL);
+      blinking(LEFT_LED);
 
       Serial.print("FRONT: ");
       Serial.print(dist_front);
@@ -142,6 +185,7 @@ void navigation(float dist_front, float dist_left, float dist_right)
     else
     {
       turn_right(SLOW_VEL);
+      blinking(RIGHT_LED);
 
       Serial.print("FRONT: ");
       Serial.print(dist_front);
@@ -158,6 +202,7 @@ void navigation(float dist_front, float dist_left, float dist_right)
     if (dist_left < STOP_LAT_DIST)
     {
       turn_right(SLOW_VEL);
+      blinking(RIGHT_LED);
 
       Serial.print("FRONT: ");
       Serial.print(dist_front);
@@ -170,6 +215,7 @@ void navigation(float dist_front, float dist_left, float dist_right)
     else if (dist_right < STOP_LAT_DIST)
     {
       turn_left(SLOW_VEL);
+      blinking(LEFT_LED);
 
       Serial.print("FRONT: ");
       Serial.print(dist_front);
@@ -182,6 +228,7 @@ void navigation(float dist_front, float dist_left, float dist_right)
     else
     {
       turn_right(SLOW_VEL);
+      blinking(RIGHT_LED);
 
       Serial.print("FRONT: ");
       Serial.print(dist_front);
@@ -198,6 +245,7 @@ void navigation(float dist_front, float dist_left, float dist_right)
     if (dist_left < STOP_LAT_DIST)
     {
       turn_right(SLOW_VEL);
+      blinking(RIGHT_LED);
 
       Serial.print("FRONT: ");
       Serial.print(dist_front);
@@ -210,6 +258,7 @@ void navigation(float dist_front, float dist_left, float dist_right)
     else if (dist_right < STOP_LAT_DIST)
     {
       turn_left(SLOW_VEL);
+      blinking(LEFT_LED);
 
       Serial.print("FRONT: ");
       Serial.print(dist_front);
@@ -221,7 +270,15 @@ void navigation(float dist_front, float dist_left, float dist_right)
     }
     else
     {
-      forward(MAX_VEL);
+
+      if (dist_front > MAX_FRONT_DIST)
+      {
+        forward(MAX_VEL);
+      }
+      else
+      {
+        forward(NORMAL_VEL);
+      }
 
       Serial.print("FRONT: ");
       Serial.print(dist_front);
@@ -247,6 +304,10 @@ void setup()
 
   pinMode(TRI_US_RIGHT, OUTPUT);
   pinMode(ECHO_US_RIGHT, INPUT);
+
+  pinMode(LEFT_LED, OUTPUT);
+  pinMode(RIGHT_LED, OUTPUT);
+  pinMode(PIN_BUZZER, OUTPUT);
 }
 
 void loop()
