@@ -1,322 +1,73 @@
 #include <Arduino.h>
+#include <Wire.h>
+#include <LiquidCrystal_I2C.h>
 
-// Motors
-const int ENA = 10;
-const int ENB = 11;
+const int LEFT_LED = A2;
+const int RIGHT_LED = A3;
+const int PIN_BUZZER = 8;
 
-const int IN1 = 2;
-const int IN2 = 3;
-const int IN3 = 4;
-const int IN4 = 5;
+LiquidCrystal_I2C lcd(0x27, 16, 2);
 
-// Ultrasonics
-const int TRI_US_FRONT = 12;
-const int ECHO_US_FRONT = 13;
-
-const int TRI_US_RIGHT = A0;
-const int ECHO_US_RIGHT = A1;
-
-const int TRI_US_LEFT = 8;
-const int ECHO_US_LEFT = 9;
-
-// Leds and buzzer
-const int LEFT_LED = 6;
-const int RIGHT_LED = 7;
-const int PIN_BUZZER = A5;
-
-// Configuration
-const int NBR_MEASURE = 1;
-const int SLOW_FRONT_DIST = 30;
-const int MAX_FRONT_DIST = 200;
-const int STOP_FRONT_DIST = 8;
-const int STOP_LAT_DIST = 10;
-const int NORMAL_VEL = 180;
-const int MAX_VEL = 255;
-const int SLOW_VEL = 127;
-
-// functions for move cars
-
-void forward(int vel)
+void blink_leds(int nb_fois)
 {
-  digitalWrite(IN1, HIGH);
-  digitalWrite(IN3, HIGH);
-  digitalWrite(IN2, LOW);
-  digitalWrite(IN4, LOW);
-
-  analogWrite(ENA, vel);
-  analogWrite(ENB, vel);
+  for (int i = 0; i < nb_fois; i++)
+  {
+    digitalWrite(LEFT_LED, HIGH);
+    digitalWrite(RIGHT_LED, HIGH);
+    delay(200);
+    digitalWrite(LEFT_LED, LOW);
+    digitalWrite(RIGHT_LED, LOW);
+    delay(200);
+  }
 }
 
-void backward(int vel)
+void connexion_reussie()
 {
-  digitalWrite(IN1, LOW);
-  digitalWrite(IN3, LOW);
-  digitalWrite(IN2, HIGH);
-  digitalWrite(IN4, HIGH);
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("Connexion");
+  lcd.setCursor(0, 1);
+  lcd.print("reussie");
 
-  analogWrite(ENA, vel);
-  analogWrite(ENB, vel);
+  blink_leds(3);
+  tone(PIN_BUZZER, 250, 500);
 }
 
-void turn_left(int vel)
+void connexion_en_cours()
 {
-  digitalWrite(IN3, LOW);
-  digitalWrite(IN4, HIGH);
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("Connexion");
+  lcd.setCursor(0, 1);
+  lcd.print("en cours...");
 
-  digitalWrite(IN1, HIGH);
-  digitalWrite(IN2, LOW);
-
-  analogWrite(ENA, vel);
-  analogWrite(ENB, vel);
-}
-
-void turn_right(int vel)
-{
-  digitalWrite(IN3, HIGH);
-  digitalWrite(IN4, LOW);
-
-  digitalWrite(IN1, LOW);
-  digitalWrite(IN2, HIGH);
-
-  analogWrite(ENA, vel);
-  analogWrite(ENB, vel);
-}
-
-void stop()
-{
-  digitalWrite(IN1, LOW);
-  digitalWrite(IN2, LOW);
-  digitalWrite(IN3, LOW);
-  digitalWrite(IN4, LOW);
-
-  analogWrite(ENA, 0);
-  analogWrite(ENB, 0);
-}
-
-// get distance and navigate
-
-float get_distances(int pin_trig, int pin_echo)
-{
-
-  digitalWrite(pin_trig, LOW);
-  delayMicroseconds(2);
-  digitalWrite(pin_trig, HIGH);
-  delayMicroseconds(10);
-  digitalWrite(pin_trig, LOW);
-
-  long time = pulseIn(pin_echo, HIGH, 15000);
-
-  if (time == 0)
-    return 400.0;
-
-  float dist = (time * 0.034) / 2;
-  return dist;
-}
-
-// Leds and Buzzer
-void blinking(int pin_led)
-{
-  digitalWrite(pin_led, HIGH);
-  tone(PIN_BUZZER, 200);
-  delay(500);
-  digitalWrite(pin_led, LOW);
-  noTone(PIN_BUZZER);
-  delay(500);
-}
-
-void stop_status()
-{
-  digitalWrite(RIGHT_LED, LOW);
-  digitalWrite(LEFT_LED, LOW);
-  noTone(PIN_BUZZER);
-}
-
-void no_issue()
-{
-  digitalWrite(RIGHT_LED, HIGH);
   digitalWrite(LEFT_LED, HIGH);
-  tone(PIN_BUZZER, 250);
-  delay(300);
-  digitalWrite(LEFT_LED, LOW);
   digitalWrite(RIGHT_LED, LOW);
-  noTone(PIN_BUZZER);
-  delay(300);
-}
-
-// navigation algorithm
-void navigation(float dist_front, float dist_left, float dist_right)
-{
-  stop_status();
-
-  if (dist_front < STOP_FRONT_DIST && dist_left < STOP_LAT_DIST && dist_right < STOP_LAT_DIST)
-  {
-    stop();
-    no_issue();
-  }
-
-  if (dist_front < SLOW_FRONT_DIST && dist_front > STOP_FRONT_DIST)
-  {
-    if (dist_left < STOP_LAT_DIST)
-    {
-      turn_right(SLOW_VEL);
-      blinking(RIGHT_LED);
-
-      Serial.print("FRONT: ");
-      Serial.print(dist_front);
-      Serial.print(" - LEFT: ");
-      Serial.print(dist_left);
-      Serial.print(" - RIGHT: ");
-      Serial.print(dist_right);
-      Serial.println(" - TURN RIGHT AND FORWARD");
-    }
-    else if (dist_right < STOP_LAT_DIST)
-    {
-      turn_left(SLOW_VEL);
-      blinking(LEFT_LED);
-
-      Serial.print("FRONT: ");
-      Serial.print(dist_front);
-      Serial.print(" - LEFT: ");
-      Serial.print(dist_left);
-      Serial.print(" - RIGHT: ");
-      Serial.print(dist_right);
-      Serial.println(" - TURN LEFT AND FORWARD");
-    }
-    else
-    {
-      turn_right(SLOW_VEL);
-      blinking(RIGHT_LED);
-
-      Serial.print("FRONT: ");
-      Serial.print(dist_front);
-      Serial.print(" - LEFT: ");
-      Serial.print(dist_left);
-      Serial.print(" - RIGHT: ");
-      Serial.print(dist_right);
-      Serial.println(" - TURN RIGHT AND FORWARD");
-    }
-  }
-  else if (dist_front < STOP_FRONT_DIST)
-  {
-    stop();
-    if (dist_left < STOP_LAT_DIST)
-    {
-      turn_right(SLOW_VEL);
-      blinking(RIGHT_LED);
-
-      Serial.print("FRONT: ");
-      Serial.print(dist_front);
-      Serial.print(" - LEFT: ");
-      Serial.print(dist_left);
-      Serial.print(" - RIGHT: ");
-      Serial.print(dist_right);
-      Serial.println(" - TURN RIGHT AND STOP");
-    }
-    else if (dist_right < STOP_LAT_DIST)
-    {
-      turn_left(SLOW_VEL);
-      blinking(LEFT_LED);
-
-      Serial.print("FRONT: ");
-      Serial.print(dist_front);
-      Serial.print(" - LEFT: ");
-      Serial.print(dist_left);
-      Serial.print(" - RIGHT: ");
-      Serial.print(dist_right);
-      Serial.println(" - TURN LEFT AND STOP");
-    }
-    else
-    {
-      turn_right(SLOW_VEL);
-      blinking(RIGHT_LED);
-
-      Serial.print("FRONT: ");
-      Serial.print(dist_front);
-      Serial.print(" - LEFT: ");
-      Serial.print(dist_left);
-      Serial.print(" - RIGHT: ");
-      Serial.print(dist_right);
-      Serial.println(" - TURN RIGHT AND STOP");
-    }
-  }
-  else
-  {
-
-    if (dist_left < STOP_LAT_DIST)
-    {
-      turn_right(SLOW_VEL);
-      blinking(RIGHT_LED);
-
-      Serial.print("FRONT: ");
-      Serial.print(dist_front);
-      Serial.print(" - LEFT: ");
-      Serial.print(dist_left);
-      Serial.print(" - RIGHT: ");
-      Serial.print(dist_right);
-      Serial.println(" - TURN RIGHT AND STOP");
-    }
-    else if (dist_right < STOP_LAT_DIST)
-    {
-      turn_left(SLOW_VEL);
-      blinking(LEFT_LED);
-
-      Serial.print("FRONT: ");
-      Serial.print(dist_front);
-      Serial.print(" - LEFT: ");
-      Serial.print(dist_left);
-      Serial.print(" - RIGHT: ");
-      Serial.print(dist_right);
-      Serial.println(" - TURN LEFT AND STOP");
-    }
-    else
-    {
-
-      if (dist_front > MAX_FRONT_DIST)
-      {
-        forward(MAX_VEL);
-      }
-      else
-      {
-        forward(NORMAL_VEL);
-      }
-
-      Serial.print("FRONT: ");
-      Serial.print(dist_front);
-      Serial.print(" - LEFT: ");
-      Serial.print(dist_left);
-      Serial.print(" - RIGHT: ");
-      Serial.print(dist_right);
-      Serial.println(" - FORWARD");
-    }
-  }
 }
 
 void setup()
 {
   Serial.begin(9600);
 
-  // Capteur AVANT
-  pinMode(TRI_US_FRONT, OUTPUT);
-  pinMode(ECHO_US_FRONT, INPUT);
-
-  pinMode(TRI_US_LEFT, OUTPUT);
-  pinMode(ECHO_US_LEFT, INPUT);
-
-  pinMode(TRI_US_RIGHT, OUTPUT);
-  pinMode(ECHO_US_RIGHT, INPUT);
-
   pinMode(LEFT_LED, OUTPUT);
   pinMode(RIGHT_LED, OUTPUT);
   pinMode(PIN_BUZZER, OUTPUT);
+
+  lcd.init();
+  lcd.backlight();
+
+  connexion_en_cours();
 }
 
 void loop()
 {
-  float dist_front = get_distances(TRI_US_FRONT, ECHO_US_FRONT);
+  if (Serial.available())
+  {
+    char etat = Serial.read();
 
-  float dist_left = get_distances(TRI_US_LEFT, ECHO_US_LEFT);
-
-  float dist_right = get_distances(TRI_US_RIGHT, ECHO_US_RIGHT);
-
-  navigation(dist_front, dist_left, dist_right);
+    if (etat == 'C')
+      connexion_en_cours();
+    else if (etat == 'K')
+      connexion_reussie();
+  }
 }
