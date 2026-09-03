@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Cyborg Cars - Control Center</title>
+    <style>
+        /* =========================================
+           VARIABLES & RESET
+           ========================================= */
+        :root {
+            --bg-color: #0d0e15;
+            --panel-bg: #151822;
+            --primary: #00ff88;
+            --primary-glow: rgba(0, 255, 136, 0.4);
+            --secondary: #00b8ff;
+            --alert: #ff2a2a;
+            --text-main: #e2e8f0;
+            --text-muted: #64748b;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+            user-select: none;
+            /* Empêche la sélection de texte lors du pilotage */
+        }
+
+        /* =========================================
+           HEADER
+           ========================================= */
+        header {
+            background: var(--panel-bg);
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--primary-glow);
+            box-shadow: 0 0 15px var(--primary-glow);
+            z-index: 10;
+        }
+
+        h1 {
+            font-size: 1.2rem;
+            color: var(--primary);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin: 0;
+        }
+
+        .connection-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.85rem;
+            color: var(--primary);
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            background-color: var(--primary);
+            border-radius: 50%;
+            box-shadow: 0 0 8px var(--primary);
+        }
+
+        /* =========================================
+           MAIN LAYOUT
+           ========================================= */
+        main {
+            display: flex;
+            flex: 1;
+            padding: 20px;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .col {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            flex: 1;
+            min-width: 300px;
+        }
+
+        .panel {
+            background: var(--panel-bg);
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+        }
+
+        .panel-title {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 15px;
+        }
+
+        /* =========================================
+           MODE SELECTOR
+           ========================================= */
+        .mode-selector {
+            display: flex;
+            gap: 10px;
+            background: rgba(0, 0, 0, 0.2);
+            padding: 5px;
+            border-radius: 8px;
+        }
+
+        .mode-btn {
+            flex: 1;
+            padding: 12px 5px;
+            background: transparent;
+            border: 1px solid transparent;
+            color: var(--text-muted);
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+
+        .mode-btn.active {
+            background: var(--primary-glow);
+            color: var(--primary);
+            border: 1px solid var(--primary);
+            box-shadow: 0 0 10px var(--primary-glow);
+        }
+
+        /* =========================================
+           CAMERA VIEW (BROKEN)
+           ========================================= */
+        .camera-container {
+            width: 100%;
+            aspect-ratio: 16/9;
+            background: #000;
+            border-radius: 8px;
+            border: 2px dashed var(--alert);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .camera-error-icon {
+            font-size: 3rem;
+            color: var(--alert);
+            margin-bottom: 10px;
+            animation: blink 2s infinite;
+        }
+
+        .camera-error-text {
+            color: var(--alert);
+            font-weight: bold;
+            letter-spacing: 1px;
+            text-align: center;
+            padding: 0 20px;
+        }
+
+        @keyframes blink {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.3;
+            }
+        }
+
+        /* =========================================
+           CONTROLS (D-PAD)
+           ========================================= */
+        .controls-wrapper {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex: 1;
+            opacity: 1;
+            transition: opacity 0.3s ease;
+        }
+
+        .controls-wrapper.disabled {
+            opacity: 0.3;
+            pointer-events: none;
+        }
+
+        .d-pad {
+            display: grid;
+            grid-template-columns: repeat(3, 70px);
+            grid-template-rows: repeat(3, 70px);
+            gap: 10px;
+        }
+
+        .d-btn {
+            background: #1e2230;
+            border: 2px solid #2a2f42;
+            border-radius: 12px;
+            color: var(--text-main);
+            font-size: 1.5rem;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            box-shadow: 0 4px 0 #0d0e15;
+            transition: all 0.1s;
+        }
+
+        .d-btn:active {
+            transform: translateY(4px);
+            box-shadow: 0 0 0 #0d0e15;
+            background: var(--primary-glow);
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+
+        .d-up {
+            grid-column: 2;
+            grid-row: 1;
+        }
+
+        .d-left {
+            grid-column: 1;
+            grid-row: 2;
+        }
+
+        .d-right {
+            grid-column: 3;
+            grid-row: 2;
+        }
+
+        .d-down {
+            grid-column: 2;
+            grid-row: 3;
+        }
+
+        /* =========================================
+           TELEMETRY
+           ========================================= */
+        .telemetry-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+        }
+
+        .data-card {
+            background: rgba(0, 0, 0, 0.3);
+            border-left: 3px solid var(--secondary);
+            padding: 15px;
+            border-radius: 6px;
+            text-align: center;
+        }
+
+        .data-label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-bottom: 5px;
+        }
+
+        .data-value {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #fff;
+        }
+
+        .data-unit {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        /* Mode indicator in telemetry */
+        #current-mode-display {
+            color: var(--primary);
+            text-transform: uppercase;
+        }
+    </style>
+</head>
+
+<body>
+
+    <header>
+        <h1>Cyborg Cars</h1>
+        <div class="connection-status">
+            <span class="status-dot" id="conn-dot"></span>
+            <span id="conn-text">Connecté</span>
+        </div>
+    </header>
+
+    <main>
+        <!-- COLONNE GAUCHE : Vision et Sélecteur -->
+        <div class="col">
+            <div class="panel">
+                <div class="panel-title">Mode de Pilotage</div>
+                <div class="mode-selector">
+                    <button class="mode-btn active" onclick="setMode('auto')" id="btn-auto">AUTO</button>
+                    <button class="mode-btn" onclick="setMode('semi')" id="btn-semi">SEMI-ASSISTÉ</button>
+                    <button class="mode-btn" onclick="setMode('manual')" id="btn-manual">MANUEL</button>
+                </div>
+            </div>
+
+            <div class="panel" style="flex:1;">
+                <div class="panel-title">Vision Optique</div>
+
+                <div class="camera-container" id="camera-box">
+                    <img id="video-stream" alt="Live Stream" style="width: 100%; height: auto;"
+                        onerror="showCameraError()">
+
+                    <!-- Message d'erreur caché par défaut -->
+                    <div id="camera-error"
+                        style="display: none; flex-direction: column; align-items: center; justify-content: center; height: 100%;">
+                        <div class="camera-error-icon"
+                            style="font-size: 3rem; color: var(--alert); margin-bottom: 10px; animation: blink 2s infinite;">
+                            ⚠️</div>
+                        <div class="camera-error-text"
+                            style="color: var(--alert); font-weight: bold; text-align: center;">MODULE CAMÉRA
+                            DÉCONNECTÉ<br><span style="font-size: 0.8rem; font-weight: normal; color: white;">En attente
+                                de réparation matérielle</span></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- COLONNE DROITE : Contrôles et Télémétrie -->
+        <div class="col">
+            <div class="panel" style="flex:1; display:flex; flex-direction:column;">
+                <div class="panel-title">Commandes Moteurs (Trackbar)</div>
+                <div class="controls-wrapper disabled" id="dpad-wrapper">
+                    <div class="d-pad">
+                        <button class="d-btn d-up" onmousedown="sendMove('F')" onmouseup="sendMove('S')"
+                            ontouchstart="sendMove('F')" ontouchend="sendMove('S')">▲</button>
+                        <button class="d-btn d-left" onmousedown="sendMove('L')" onmouseup="sendMove('S')"
+                            ontouchstart="sendMove('L')" ontouchend="sendMove('S')">◀</button>
+                        <button class="d-btn d-right" onmousedown="sendMove('R')" onmouseup="sendMove('S')"
+                            ontouchstart="sendMove('R')" ontouchend="sendMove('S')">▶</button>
+                        <button class="d-btn d-down" onmousedown="sendMove('B')" onmouseup="sendMove('S')"
+                            ontouchstart="sendMove('B')" ontouchend="sendMove('S')">▼</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel">
+                <div class="panel-title">Télémétrie Ultrasons</div>
+                <div class="telemetry-grid">
+                    <div class="data-card" style="border-color: #ffaa00;">
+                        <div class="data-label">GAUCHE</div>
+                        <div class="data-value" id="dist-g">-- <span class="data-unit">cm</span></div>
+                    </div>
+                    <div class="data-card" style="border-color: #00ff88;">
+                        <div class="data-label">AVANT</div>
+                        <div class="data-value" id="dist-a">-- <span class="data-unit">cm</span></div>
+                    </div>
+                    <div class="data-card" style="border-color: #00b8ff;">
+                        <div class="data-label">DROITE</div>
+                        <div class="data-value" id="dist-d">-- <span class="data-unit">cm</span></div>
+                    </div>
+                </div>
+                <div style="margin-top: 15px; text-align: center; font-size: 0.85rem; color: var(--text-muted);">
+                    Statut actuel : <span id="current-mode-display">AUTONOME</span>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        /* =========================================
+           LOGIQUE JAVASCRIPT (FRONT-END)
+           ========================================= */
+        let currentMode = 'auto'; // Modes: 'auto', 'semi', 'manual'
+
+        // CONNEXION DYNAMIQUE AU PORT 81 POUR LA VIDÉO
+        document.getElementById('video-stream').src = 'http://' + window.location.hostname + ':81/stream';
+
+        // si camera desactive
+        function showCameraError() {
+            document.getElementById('video-stream').style.display = 'none';
+            document.getElementById('camera-error').style.display = 'flex';
+        }
+
+        // changement de mode
+        function setMode(mode) {
+            currentMode = mode;
+
+            document.querySelectorAll('.mode-btn').forEach(btn => btn.classList.remove('active'));
+            document.getElementById('btn-' + mode).classList.add('active');
+
+            const modeText = mode === 'auto' ? 'AUTONOME' : (mode === 'semi' ? 'SEMI-ASSISTÉ' : 'MANUEL PUR');
+            document.getElementById('current-mode-display').innerText = modeText;
+
+            // Activation/Désactivation visuelle du D-Pad
+            const dpad = document.getElementById('dpad-wrapper');
+            if (mode === 'auto') {
+                dpad.classList.add('disabled');
+            } else {
+                dpad.classList.remove('disabled');
+            }
+
+            // Envoi du nouveau mode à l'API de l'ESP32
+            // route: GET /setMode?m=auto
+            fetch(`/setMode?m=${mode}`)
+                .then(response => console.log("Mode changé côté ESP32"))
+                .catch(err => console.error("Erreur de connexion", err));
+        }
+
+        // gestion du mouvement
+        // Commandes: F (Forward), B (Backward), L (Left), R (Right), S (Stop)
+        function sendMove(direction) {
+            // en auto on bloque les commandes de l'interface
+            if (currentMode === 'auto') return;
+
+            console.log("Envoi commande: " + direction);
+
+            // Envoi de la commande à l'API de l'ESP32
+            // GET /action?dir=F
+            fetch(`/action?dir=${direction}`)
+                .catch(err => updateConnectionStatus(false));
+        }
+
+        // TÉLÉMÉTRIE (Polling)
+        function fetchTelemetry() {
+            // route ecoute: GET /telemetry et renvoyer du JSON
+            // Exemple JSON attendu : {"a": 45, "g": 12, "d": 80}
+            fetch('/telemetry')
+                .then(response => {
+                    updateConnectionStatus(true);
+                    return response.json();
+                })
+                .then(data => {
+                    document.getElementById('dist-a').innerHTML = `${data.a} <span class="data-unit">cm</span>`;
+                    document.getElementById('dist-g').innerHTML = `${data.g} <span class="data-unit">cm</span>`;
+                    document.getElementById('dist-d').innerHTML = `${data.d} <span class="data-unit">cm</span>`;
+                })
+                .catch(err => {
+                    updateConnectionStatus(false);
+                });
+        }
+
+
+        function updateConnectionStatus(isConnected) {
+            const dot = document.getElementById('conn-dot');
+            const text = document.getElementById('conn-text');
+            if (isConnected) {
+                dot.style.backgroundColor = 'var(--primary)';
+                dot.style.boxShadow = '0 0 8px var(--primary)';
+                text.innerText = 'Connecté';
+                text.style.color = 'var(--primary)';
+            } else {
+                dot.style.backgroundColor = 'var(--alert)';
+                dot.style.boxShadow = '0 0 8px var(--alert)';
+                text.innerText = 'Connexion perdue...';
+                text.style.color = 'var(--alert)';
+            }
+        }
+
+        // Démarrage de la boucle de rafraîchissement de la télémétrie (2 fois par seconde)
+        setInterval(fetchTelemetry, 500);
+
+        // Prévention du clic droit et des menus contextuels sur les boutons tactiles
+        document.addEventListener('contextmenu', event => event.preventDefault());
+
+    </script>
+</body>
+
+</html>
